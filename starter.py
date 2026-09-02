@@ -34,7 +34,6 @@ def install_dependencies():
 def main():
     install_dependencies()
     
-    # Adiciona a pasta server ao path
     server_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server')
     sys.path.insert(0, server_dir)
     
@@ -44,7 +43,13 @@ def main():
         from server import app, socketio
         print("[+] Servidor pronto em http://0.0.0.0:5000")
         print("[+] Painel: http://localhost:5000 (admin / admin123)")
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+        socketio.run(
+            app,
+            host='0.0.0.0',
+            port=5000,
+            debug=False,
+            allow_unsafe_werkzeug=True  # ← correção
+        )
     except ImportError as e:
         print(f"[-] Erro ao importar server.py: {e}")
         print("    Verifica se server/server.py existe.")
