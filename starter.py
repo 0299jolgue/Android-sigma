@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Starter — Inicia o servidor C2
-Uso: python starter.py
+Starter — Inicia o servidor C2 na porta 80
+Uso: sudo python starter.py
 """
 
 import os
@@ -41,14 +41,14 @@ def main():
     
     try:
         from server import app, socketio
-        print("[+] Servidor pronto em http://0.0.0.0:5000")
-        print("[+] Painel: http://localhost:5000 (admin / admin123)")
+        print("[+] Servidor pronto em http://0.0.0.0:80")
+        print("[+] Painel: http://localhost (admin / admin123)")
         socketio.run(
             app,
             host='0.0.0.0',
-            port=5000,
+            port=80,
             debug=False,
-            allow_unsafe_werkzeug=True  # ← correção
+            allow_unsafe_werkzeug=True
         )
     except ImportError as e:
         print(f"[-] Erro ao importar server.py: {e}")
