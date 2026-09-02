@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — Painel de Controlo</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Courier New', monospace;
             background: #0a0a0a;
@@ -15,19 +20,23 @@
             justify-content: center;
             min-height: 100vh;
         }
+
         .login-box {
             background: #111;
             border: 1px solid #333;
             padding: 40px;
-            width: 350px;
+            width: 360px;
             border-radius: 5px;
         }
+
         h1 {
-            font-size: 24px;
-            margin-bottom: 30px;
+            font-size: 22px;
+            margin-bottom: 25px;
             text-align: center;
             letter-spacing: 3px;
+            color: #00ff00;
         }
+
         input {
             width: 100%;
             padding: 12px;
@@ -37,7 +46,14 @@
             color: #00ff00;
             font-family: inherit;
             font-size: 14px;
+            border-radius: 3px;
         }
+
+        input:focus {
+            outline: none;
+            border-color: #00ff00;
+        }
+
         button {
             width: 100%;
             padding: 12px;
@@ -49,13 +65,19 @@
             font-weight: bold;
             cursor: pointer;
             letter-spacing: 2px;
+            border-radius: 3px;
+            transition: background 0.2s;
         }
-        button:hover { background: #00cc00; }
+
+        button:hover {
+            background: #00cc00;
+        }
+
         .error {
             color: #ff0000;
             text-align: center;
             margin-bottom: 15px;
-            font-size: 14px;
+            font-size: 13px;
         }
     </style>
 </head>
@@ -65,8 +87,8 @@
         {% if error %}
         <p class="error">{{ error }}</p>
         {% endif %}
-        <form method="POST">
-            <input type="text" name="username" placeholder="utilizador" required>
+        <form method="POST" action="/login">
+            <input type="text" name="username" placeholder="utilizador" required autofocus>
             <input type="password" name="password" placeholder="palavra-passe" required>
             <button type="submit">ENTRAR</button>
         </form>
