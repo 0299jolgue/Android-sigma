@@ -10,14 +10,13 @@ import sys
 import subprocess
 
 def install_dependencies():
-    """Instala Flask e Flask-SocketIO se necessário."""
-    deps = ['flask', 'flask-socketio']
+    """Instala Flask se necessário."""
+    deps = ['flask']
     missing = []
     
     for dep in deps:
-        module = dep.replace('-', '_')
         try:
-            __import__(module)
+            __import__(dep)
         except ImportError:
             missing.append(dep)
     
@@ -28,7 +27,7 @@ def install_dependencies():
             print("[+] Dependências instaladas.")
         except subprocess.CalledProcessError:
             print("[-] Falha na instalação. Instala manualmente:")
-            print("    pip install flask flask-socketio")
+            print("    pip install flask")
             sys.exit(1)
 
 def main():
@@ -40,16 +39,10 @@ def main():
     print("[+] A iniciar o servidor C2...")
     
     try:
-        from server import app, socketio
+        from server import app
         print("[+] Servidor pronto em http://0.0.0.0:80")
         print("[+] Painel: http://localhost (admin / admin123)")
-        socketio.run(
-            app,
-            host='0.0.0.0',
-            port=80,
-            debug=False,
-            allow_unsafe_werkzeug=True
-        )
+        app.run(host='0.0.0.0', port=80, debug=False)
     except ImportError as e:
         print(f"[-] Erro ao importar server.py: {e}")
         print("    Verifica se server/server.py existe.")
